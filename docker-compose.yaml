@@ -1,0 +1,30 @@
+services:
+  db:
+    image: mysql:8.0.31-debian
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    container_name: comparison-mysql-db
+    volumes:
+      - ./db.sql:/docker-entrypoint-initdb.d/db.sql
+  java-app:
+    build:
+      context: ./java/comparison/
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/comparison
+    container_name: comparison-java
+    links:
+      - db
+  node-app:
+    build:
+      context: ./js/
+    ports:
+      - "8081:3000"
+    environment:
+      - DATABASE_HOST=db
+    container_name: comparison-js
+    links:
+      - db
