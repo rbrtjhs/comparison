@@ -1,10 +1,10 @@
 import express, { Express, Request, Response } from 'express';
-import dotenv from 'dotenv';
+import cluster from 'cluster';
+import { cpus } from 'os';
+
 const mysql = require('mysql2');
+const totalCPUs = cpus().length;
 
-dotenv.config();
-
-const app: Express = express();
 const port = 3000;
 
 const pool = mysql.createPool({
@@ -21,16 +21,33 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 0
 });
 
-// mysqlConnection.connect();
+if (cluster.isPrimary) {
+  console.log(`Number of CPUs is ${totalCPUs}`);
+  console.log(`Master ${process.pid} is running`);
 
-app.get('/users', async function func(req: Request, res: Response) {
-  // For pool initialization, see above
-  const promisePool = pool.promise();
-  // query database using promises
-  const [rows,fields] = await promisePool.query("SELECT * FROM user");
-  res.send(rows);
-});
+  // Fork workers.
+  for (let i = 0; i < totalCPUs; i++) {
+    cluster.fork();
+  }
 
-app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
-});
+  cluster.on("exit", (worker, code, signal) => {
+    console.log(`worker ${worker.process.pid} died`);
+    console.log("Let's fork another worker!");
+    cluster.fork();
+  });
+} else {
+  const app: Express = express();
+  console.log(`Worker ${process.pid} started`);
+
+  app.get('/users', async function func(req: Request, res: Response) {
+    // For pool initialization, see above
+    const promisePool = pool.promise();
+    // query database using promises
+    const [rows, fields] = await promisePool.query("SELECT * FROM user");
+    res.send(rows);
+  });
+
+  app.listen(port, () => {
+    console.log(`Example app listening at http://localhost:${port}`);
+  });
+}
