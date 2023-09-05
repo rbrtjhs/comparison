@@ -42,7 +42,7 @@ public class ComparisonApplication {
 
 	@GetMapping("/users")
 	public ResponseEntity<List<UserDTO>> getUsers() {
-		return ResponseEntity.ok(jdbcTemplate.query("SELECT * FROM user", (rs, num) -> {
+		return ResponseEntity.ok(jdbcTemplate.query("SELECT * FROM account", (rs, num) -> {
 			var id = rs.getLong(1);
 			var firstName = rs.getString(2);
 			var lastName = rs.getString(3);

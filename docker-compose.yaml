@@ -1,30 +1,61 @@
 services:
   db:
-    image: mysql:8.0.31-debian
+    image: postgres:16rc1-alpine3.18
     ports:
-      - "3306:3306"
+      - "5432:5432"
     environment:
-      - MYSQL_ROOT_PASSWORD=root
-    container_name: comparison-mysql-db
+      - POSTGRES_PASSWORD=postgres
+    container_name: comparison-postgres-db
     volumes:
       - ./db.sql:/docker-entrypoint-initdb.d/db.sql
+    cpus: 2
   java-app:
     build:
       context: ./java/comparison/
+      tags:
+        - "rbrtjhs/comparison-java:latest"
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/comparison
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/comparison
     container_name: comparison-java
     links:
       - db
+    cpus: 2
   node-app:
     build:
       context: ./js/
+      tags:
+        - "rbrtjhs/comparison-nodejs:latest"
     ports:
       - "8081:3000"
     environment:
       - DATABASE_HOST=db
     container_name: comparison-js
+    links:
+      - db
+    cpus: 2
+  monitor:
+    image:   gcr.io/cadvisor/cadvisor:v0.36.0
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8082:8080"
+    container_name: cadvisor
+    privileged: true
+    devices:
+      - "/dev/kmsg"
+  pg_admin:
+    image: dpage/pgadmin4
+    ports:
+      - "8083:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=rbrtjhs@gmail.com
+      - PGADMIN_DEFAULT_PASSWORD=postgres
+    container_name: pgadmin
     links:
       - db
